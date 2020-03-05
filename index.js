@@ -20,7 +20,7 @@ const bitbucketUsername = process.env.BITBUCKET_USERNAME;
 const bitbucketPassword = process.env.BITBUCKET_PASSWORD;
 
 const run = async () => {
-  const response = await axios.get('https://stash.agiledigital.com.au/rest/api/latest/projects/repos?limit=1000', {
+  const response = await axios.get('https://stash.agiledigital.com.au/rest/api/latest/projects/CSC/repos?limit=1000', {
     auth: {
       username: bitbucketUsername,
       password: bitbucketPassword
