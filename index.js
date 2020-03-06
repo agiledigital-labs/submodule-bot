@@ -57,7 +57,7 @@ const createPullRequest = async (bitbucketHost, repo, branchName, defaultBranch,
   const response = await axios.post(`https://${bitbucketHost}/rest/api/latest/projects/${repo.project.key}/repos/${repo.name}/pull-requests`,
     {
       title: `Bump ${submoduleRepo.name} version`,
-      description: `Auto PR for bumping ${submoduleRepo} version`,
+      description: `Auto PR for bumping ${submoduleRepo.name} version`,
       state: 'OPEN',
       open: true,
       closed: false,
