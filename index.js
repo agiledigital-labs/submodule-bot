@@ -148,7 +148,7 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
       if (submoduleToUpdate.commit !== submoduleCommit.id) {
         console.log(`Submodule is behind, updating to [${submoduleCommit.id}]`);
 
-        const jiraTicket = submoduleCommit.properties['jira-key'].find(key => key.indexOf(project) > -1) || 'XXX';
+        const jiraTicket = submoduleCommit.properties['jira-key'].find(key => key.indexOf(submoduleRepo.project.key) > -1) || 'XXX';
 
         const branchName = `feature/${jiraTicket}-bump-${submoduleRepo.name}`;
 
@@ -165,10 +165,10 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
         await git.addConfig('user.email', 'sb@agiledigital.com.au');
 
         if (signingKeyId) {
-          await git.raw(['commit', `--gpg-sign=${signingKeyId}`, '-am', `${jiraTicket} = ${repo.name}: Bump ${updatedRepo}`]);
+          await git.raw(['commit', `--gpg-sign=${signingKeyId}`, '-am', `${jiraTicket} = ${repo.name}: Bump ${submoduleRepo.name}`]);
         }
         else {
-          await git.raw(['commit', '-am', `${jiraTicket} = ${repo.name}: Bump ${updatedRepo}`]);
+          await git.raw(['commit', '-am', `${jiraTicket} = ${repo.name}: Bump ${submoduleRepo.name}`]);
         }
 
 
