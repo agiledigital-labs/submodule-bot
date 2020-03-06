@@ -12,6 +12,8 @@ const simpleGit = require('simple-git/promise');
 const git = simpleGit(workingDirPath);
 const axios = require('axios');
 
+const gitUserName = process.env.GIT_USER_NAME;
+const gitUserEmail = process.env.GIT_USER_EMAIL;
 const bitbucketUsername = process.env.BITBUCKET_USERNAME;
 const bitbucketPassword = process.env.BITBUCKET_PASSWORD;
 
@@ -164,8 +166,8 @@ const processRepo = async (repo, submoduleCommit) => {
 
         await git.add('.');
 
-        await git.addConfig('user.name', 'Submodule Bot');
-        await git.addConfig('user.email', 'sb@agiledigital.com.au');
+        await git.addConfig('user.name', gitUserName);
+        await git.addConfig('user.email', gitUserEmail);
 
         await git.raw(['commit', `--gpg-sign=${signingKeyId}`, '-am', `${jiraTicket} = ${repo.name}: Bump ${updatedRepo}`]);
 
