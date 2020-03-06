@@ -66,7 +66,7 @@ const createPullRequest = async (bitbucketHost, repo, branchName, defaultBranch,
         repository: {
           'slug': repo.name,
           'project': {
-            'key': project
+            'key': repo.project.key
           }
         }
       },
@@ -75,7 +75,7 @@ const createPullRequest = async (bitbucketHost, repo, branchName, defaultBranch,
         repository: {
           'slug': repo.name,
           'project': {
-            'key': project
+            'key': repo.project.key
           }
         }
       },
