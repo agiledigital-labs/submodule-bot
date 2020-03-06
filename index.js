@@ -1,4 +1,5 @@
 const fs = require('fs-extra');
+const gpg = require('gpg');
 
 const workingDirPath = './repos';
 
@@ -72,7 +73,16 @@ const run = async () => {
 
 };
 
-run();
+exports.createSubmodulePRs = () => {
+  // Import the signing key.
+  gpg.importKey(process.env.SUBMODULE_BOT_PRIVATE_KEY, [], (success, err) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
 
+    run();
+  });
+};
 
 
