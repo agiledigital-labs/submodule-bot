@@ -27,18 +27,20 @@ sudo docker build -t ad/submodule-bot .
 set +x
 export SUBMODULE_BOT_PRIVATE_KEY="$(gpg --export-secret-keys --armor $SUBMODULE_BOT_PRIVATE_KEY_ID | tr '\n' '_')"
 echo + sudo docker run \
+    --env "SUBMODULE_BOT_PRIVATE_KEY_ID=[...]" \
     --env "SUBMODULE_BOT_PRIVATE_KEY=[...]" \
     --env "BITBUCKET_USERNAME=[...]" \
     --env "BITBUCKET_PASSWORD=[...]" \
     --name=submodule-bot \
-    -p 49000:8080 \
+    -p 49000:3000 \
     -d ad/submodule-bot
 sudo docker run \
+    --env "SUBMODULE_BOT_PRIVATE_KEY_ID=$SUBMODULE_BOT_PRIVATE_KEY_ID" \
     --env "SUBMODULE_BOT_PRIVATE_KEY=$(echo $SUBMODULE_BOT_PRIVATE_KEY | tr '_' '\n')" \
     --env "BITBUCKET_USERNAME=$BITBUCKET_USERNAME" \
     --env "BITBUCKET_PASSWORD=$BITBUCKET_PASSWORD" \
     --name=submodule-bot \
-    -p 49000:8080 \
+    -p 49000:3000 \
     -d ad/submodule-bot
 
 cat <<EOF

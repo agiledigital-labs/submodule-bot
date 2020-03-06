@@ -18,7 +18,7 @@ app.use(bodyParser.json());
 app.post('/hook', (req, res) => {
   console.log('POST /hook');
   console.log('Body:');
-  console.log(req.body);
+  console.log(JSON.stringify(req.body, null, 4));
 
   const refChanges = req.body.refChanges;
 
@@ -29,6 +29,7 @@ app.post('/hook', (req, res) => {
     return;
   }
 
+  // TODO: Don't assume 'develop' is the default branch.
   if (refChanges.filter(ref => ref.refId === 'refs/heads/develop').length > 0) {
     index.createSubmodulePRs();
     res.send('OK');

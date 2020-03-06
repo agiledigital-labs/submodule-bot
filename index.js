@@ -212,9 +212,12 @@ exports.createSubmodulePRs = () => {
   // Import the signing key.
   gpg.importKey(process.env.SUBMODULE_BOT_PRIVATE_KEY, [], (success, err) => {
     if (err) {
+      console.error('Failed to import signing private key');
       console.error(err);
       return;
     }
+
+    console.log('Imported signing private key');
 
     run();
   });
