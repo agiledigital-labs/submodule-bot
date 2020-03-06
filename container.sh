@@ -54,9 +54,10 @@ sudo docker run \
     -p 49000:3000 \
     -d ad/submodule-bot
 
-cat <<EOF
-Try:
-    curl -H 'Content-Type: application/json' --data '{ "refChanges": [ { "refId": "refs/heads/develop" } ] }' localhost:49000/hook
-And then:
-    docker logs submodule-bot -f
-EOF
+# TODO: This example doesn't work anymore.
+# cat <<EOF
+# Try:
+#     curl -H 'Content-Type: application/json' --data '{ "refChanges": [ { "refId": "refs/heads/develop" } ] }' localhost:49000/hook
+# And then:
+#     docker logs submodule-bot -f
+# EOF
