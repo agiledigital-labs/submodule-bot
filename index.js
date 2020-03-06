@@ -15,6 +15,8 @@ const axios = require('axios');
 const bitbucketUsername = process.env.BITBUCKET_USERNAME;
 const bitbucketPassword = process.env.BITBUCKET_PASSWORD;
 
+const signingKeyId = process.env.SUBMODULE_BOT_PRIVATE_KEY_ID;
+
 // TODO: These should come from webhook call.
 const updatedRepo = 'canonical-model-api-raml';
 const updatedCommit = '7b5a6f1eb0f45110ad8511043d37684d5d687f6a';
@@ -119,7 +121,7 @@ const processRepo = async (repo, submoduleCommit) => {
   await git.pull(`origin/${defaultBranch.displayId}`);
 
   // Init submodules so we can have working module directory.
-  await git.subModule(['update', '--init', '--recursive']);
+  await git.submoduleUpdate(['--init', '--recursive']);
 
   const submoduleConfigs = await git.raw(['config', '--file', '.gitmodules', '--get-regexp', 'url']);
 
@@ -162,7 +164,10 @@ const processRepo = async (repo, submoduleCommit) => {
 
         await git.add('.');
 
-        await git.raw(['commit', '-S', '-am', `${jiraTicket} = ${repo.name}: Bump ${updatedRepo}`]);
+        await git.addConfig('user.name', 'Submodule Bot');
+        await git.addConfig('user.email', 'sb@agiledigital.com.au');
+
+        await git.raw(['commit', `--gpg-sign=${signingKeyId}`, '-am', `${jiraTicket} = ${repo.name}: Bump ${updatedRepo}`]);
 
         await git.push(['origin', `HEAD:${branchName}`]);
 
@@ -209,16 +214,10 @@ const run = async () => {
 };
 
 exports.createSubmodulePRs = () => {
-  // Import the signing key.
+  console.log('Importing signing private key');
+
   gpg.importKey(process.env.SUBMODULE_BOT_PRIVATE_KEY, [], (success, err) => {
-    if (err) {
-      console.error('Failed to import signing private key');
-      console.error(err);
-      return;
-    }
-
-    console.log('Imported signing private key');
-
+    console.error(err);
     run();
   });
 };
