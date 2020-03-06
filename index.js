@@ -14,6 +14,8 @@ const git = simpleGit(workingDirPath);
 const axios = require('axios');
 const gpg = require('gpg');
 
+const gitUserName = process.env.GIT_USER_NAME;
+const gitUserEmail = process.env.GIT_USER_EMAIL;
 const bitbucketUsername = process.env.BITBUCKET_USERNAME;
 const bitbucketPassword = process.env.BITBUCKET_PASSWORD;
 const signingKeyId = process.env.SUBMODULE_BOT_PRIVATE_KEY_ID;
@@ -160,9 +162,9 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
 
         await git.add('.');
         
-        await git.addConfig('user.name', 'Submodule Bot');
+        await git.addConfig('user.name', gitUserName);
+        await git.addConfig('user.email', gitUserEmail);
 
-        await git.addConfig('user.email', 'sb@agiledigital.com.au');
 
         if (signingKeyId) {
           await git.raw(['commit', `--gpg-sign=${signingKeyId}`, '-am', `${jiraTicket} = ${repo.name}: Bump ${submoduleRepo.name}`]);
@@ -210,7 +212,7 @@ const run = async (bitbucketHost, submoduleRepo, mergeCommit) => {
     await repos.reduce(async (res, repo) => {
       // Wait for previous working finished in order to not confuse SimpleGit's session.
       await res;
-      
+
       const result = await processRepo(bitbucketHost, repo, submoduleCommit, submoduleRepo);
       
       console.log('\n');
