@@ -1,3 +1,5 @@
+'use strict';
+
 const fs = require('fs-extra');
 
 const workingDirPath = './repos';
@@ -10,17 +12,14 @@ if (!fs.existsSync(workingDirPath)) {
 const simpleGit = require('simple-git/promise');
 const git = simpleGit(workingDirPath);
 const axios = require('axios');
+const gpg = require('gpg');
 
 const bitbucketUsername = process.env.BITBUCKET_USERNAME;
 const bitbucketPassword = process.env.BITBUCKET_PASSWORD;
+const signingKeyId = process.env.SUBMODULE_BOT_PRIVATE_KEY_ID;
 
-// TODO: These should come from webhook call.
-const updatedRepo = 'canonical-model-api-raml';
-const updatedCommit = '7b5a6f1eb0f45110ad8511043d37684d5d687f6a';
-const project = 'CSC';
-
-const fetchDefaultBranch = async (repo) => {
-  const response = await axios.get(`https://stash.agiledigital.com.au/rest/api/latest/projects/${project}/repos/${repo.name}/branches/default`, {
+const fetchDefaultBranch = async (bitbucketHost, repo) => {
+  const response = await axios.get(`https://${bitbucketHost}/rest/api/latest/projects/${repo.project.key}/repos/${repo.name}/branches/default`, {
     auth: {
       username: bitbucketUsername,
       password: bitbucketPassword
@@ -30,8 +29,8 @@ const fetchDefaultBranch = async (repo) => {
   return response.data;
 };
 
-const fetchRepos = async () => {
-  const response = await axios.get(`https://stash.agiledigital.com.au/rest/api/latest/projects/${project}/repos?limit=1000`, {
+const fetchRepos = async (bitbucketHost, repo) => {
+  const response = await axios.get(`https://${bitbucketHost}/rest/api/latest/projects/${repo.project.key}/repos?limit=1000`, {
     auth: {
       username: bitbucketUsername,
       password: bitbucketPassword
@@ -41,8 +40,8 @@ const fetchRepos = async () => {
   return response.data;
 };
 
-const fetchCommit = async (commitId, repoName) => {
-  const response = await axios.get(`https://stash.agiledigital.com.au/rest/api/latest/projects/${project}/repos/${repoName}/commits/${commitId}`, {
+const fetchCommit = async (bitbucketHost, commit, repo) => {
+  const response = await axios.get(`https://${bitbucketHost}/rest/api/latest/projects/${repo.project.key}/repos/${repo.name}/commits/${commit.id}`, {
     auth: {
       username: bitbucketUsername,
       password: bitbucketPassword
@@ -52,8 +51,8 @@ const fetchCommit = async (commitId, repoName) => {
   return response.data;
 };
 
-const createPullRequest = async (repo, branchName, defaultBranch, submoduleRepo) => {
-  const response = await axios.post(`https://stash.agiledigital.com.au/rest/api/latest/projects/CSC/repos/${repo.name}/pull-requests`,
+const createPullRequest = async (bitbucketHost, repo, branchName, defaultBranch, submoduleRepo) => {
+  const response = await axios.post(`https://${bitbucketHost}/rest/api/latest/projects/${repo.project.key}/repos/${repo.name}/pull-requests`,
     {
       title: `Bump ${submoduleRepo} version`,
       description: `Auto PR for bumping ${submoduleRepo} version`,
@@ -89,7 +88,7 @@ const createPullRequest = async (repo, branchName, defaultBranch, submoduleRepo)
   return response.data;
 };
 
-const processRepo = async (repo, submoduleCommit) => {
+const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) => {
   console.log(`Working on [${repo.name}]...`);
   
   // Reset working directory.
@@ -111,14 +110,14 @@ const processRepo = async (repo, submoduleCommit) => {
     console.log(`Done [${repo.name}]`);
   }
 
-  const defaultBranch = await fetchDefaultBranch(repo);
+  const defaultBranch = await fetchDefaultBranch(bitbucketHost, repo);
 
   await git.cwd(repoDir);
 
   await git.pull(`origin/${defaultBranch.displayId}`);
 
   // Init submodules so we can have working module directory.
-  await git.subModule(['update', '--init', '--recursive']);
+  await git.submoduleUpdate(['--init', '--recursive']);
 
   const submoduleConfigs = await git.raw(['config', '--file', '.gitmodules', '--get-regexp', 'url']);
 
@@ -139,38 +138,48 @@ const processRepo = async (repo, submoduleCommit) => {
         return { commit, path };
       });
 
-    const submodulePathToUpdate = submodulePath.find(subPath => subPath.rawName.indexOf(updatedRepo) > -1);
+    const submodulePathToUpdate = submodulePath.find(subPath => subPath.rawName.indexOf(submoduleRepo.name) > -1);
 
     if (submodulePathToUpdate) {
       const submoduleToUpdate = submoduleCommits.find(sub => submodulePathToUpdate.pathUrl.indexOf(sub.path) > -1);
 
       console.log('Submodule to update', submoduleToUpdate);
 
-      if (submoduleToUpdate.commit !== updatedCommit) {
-        console.log(`Submodule is behind, updating to [${updatedCommit}]`);
+      if (submoduleToUpdate.commit !== submoduleCommit.id) {
+        console.log(`Submodule is behind, updating to [${submoduleCommit.id}]`);
 
         const jiraTicket = submoduleCommit.properties['jira-key'].find(key => key.indexOf(project) > -1) || 'XXX';
 
-        const branchName = `feature/${jiraTicket}-bump-${updatedRepo}`;
+        const branchName = `feature/${jiraTicket}-bump-${submoduleRepo.name}`;
 
         await git.cwd(`${repoDir}/${submoduleToUpdate.path}`);
 
-        await git.checkout(updatedCommit);
+        await git.checkout(submoduleCommit.id);
 
         await git.cwd(repoDir);
 
         await git.add('.');
+        
+        await git.addConfig('user.name', 'Submodule Bot');
 
-        await git.raw(['commit', '-S', '-am', `${jiraTicket} = ${repo.name}: Bump ${updatedRepo}`]);
+        await git.addConfig('user.email', 'sb@agiledigital.com.au');
+
+        if (signingKeyId) {
+          await git.raw(['commit', `--gpg-sign=${signingKeyId}`, '-am', `${jiraTicket} = ${repo.name}: Bump ${updatedRepo}`]);
+        }
+        else {
+          await git.raw(['commit', '-am', `${jiraTicket} = ${repo.name}: Bump ${updatedRepo}`]);
+        }
+
 
         await git.push(['origin', `HEAD:${branchName}`]);
 
-        const prResponse = await createPullRequest(repo, branchName, defaultBranch, updatedRepo);
+        const prResponse = await createPullRequest(bitbucketHost, repo, branchName, defaultBranch, submoduleRepo);
 
         console.log(`PR created [${JSON.stringify(prResponse, null, 2)}]`);
       }
       else {
-        console.log(`Submodule [${updatedRepo}] is update to date`);
+        console.log(`Submodule [${submoduleRepo.name}] is update to date`);
       }
     }
     else {
@@ -184,30 +193,36 @@ const processRepo = async (repo, submoduleCommit) => {
   return 'Done';
 }
 
-const run = async () => {
-  const data = await fetchRepos();
+const run = async (bitbucketHost, submoduleRepo, mergeCommit) => {
+  const data = await fetchRepos(bitbucketHost, submoduleRepo);
 
   const repos = data.values;
 
-  console.log(`Scanning [${repos.length}] repos....`);
+  console.log('Importing signing private key');
 
-  const submoduleCommit = await fetchCommit(updatedCommit, updatedRepo);
+  gpg.importKey(process.env.SUBMODULE_BOT_PRIVATE_KEY, [], async (success, err) => {
+    console.error(err);
 
-  await repos.reduce(async (res, repo) => {
-    // Wait for previous working finished in order to not confuse SimpleGit's session.
-    await res;
-    
-    const result = await processRepo(repo, submoduleCommit);
-    
-    console.log('\n');
+    console.log(`Scanning [${repos.length}] repos....`);
 
-    return result;
-  }, Promise.resolve(''));
+    const submoduleCommit = await fetchCommit(bitbucketHost, mergeCommit, submoduleRepo);
 
-  console.log('Successfully scanned repos and updated correspondence submodules');
+    await repos.reduce(async (res, repo) => {
+      // Wait for previous working finished in order to not confuse SimpleGit's session.
+      await res;
+      
+      const result = await processRepo(bitbucketHost, repo, submoduleCommit, submoduleRepo);
+      
+      console.log('\n');
+
+      return result;
+    }, Promise.resolve(''));
+
+    console.log('Successfully scanned repos and updated submodules');
+  });
 };
 
-run();
-
-
-
+module.exports = {
+  fetchDefaultBranch,
+  run
+};
