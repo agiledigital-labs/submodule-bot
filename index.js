@@ -166,14 +166,12 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
 
         await git.addConfig('user.email', gitUserEmail);
 
-
         if (signingKeyId) {
-          await git.raw(['commit', `--gpg-sign=${signingKeyId}`, '-am', `${jiraTicket} = ${repo.name}: Bump ${submoduleRepo.name}`]);
+          await git.raw(['commit', `--gpg-sign=${signingKeyId}`, '-am', `${jiraTicket} = ${repo.name}: [submodule-bot] bump ${submoduleRepo.name}`]);
         }
         else {
-          await git.raw(['commit', '-am', `${jiraTicket} = ${repo.name}: Bump ${submoduleRepo.name}`]);
+          await git.raw(['commit', '-am', `${jiraTicket} = ${repo.name}: [submodule-bot] bump ${submoduleRepo.name}`]);
         }
-
 
         await git.push(['origin', `HEAD:${branchName}`]);
 
@@ -203,8 +201,11 @@ const run = async (bitbucketHost, submoduleRepo, mergeCommit) => {
 
   console.log('Importing signing private key');
 
-  gpg.importKey(process.env.SUBMODULE_BOT_PRIVATE_KEY, [], async (success, err) => {
-    console.error(err);
+  gpg.importKey(process.env.SUBMODULE_BOT_PRIVATE_KEY, [], async (err, _) => {
+    if (err) {
+      console.error(err);
+      console.log('Ignore GPG signing for bot user');
+    }
 
     console.log(`Scanning [${repos.length}] repos....`);
 
