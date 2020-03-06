@@ -18,8 +18,9 @@ GIT_USER_NAME
 GIT_USER_EMAIL
 BITBUCKET_USERNAME
 BITBUCKET_PASSWORD
-SUBMODULE_BOT_PRIVATE_KEY_ID // For GPG sign commits for your bot commit
-SUBMODULE_BOT_PRIVATE_KEY // For GPG sign commits for your bot commit
+// GPG signing commits for your bot's commit
+SUBMODULE_BOT_PRIVATE_KEY_ID 
+SUBMODULE_BOT_PRIVATE_KEY
 
 // Install
 npm install
