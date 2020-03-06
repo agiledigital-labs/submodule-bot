@@ -56,7 +56,7 @@ const fetchCommit = async (bitbucketHost, commit, repo) => {
 const createPullRequest = async (bitbucketHost, repo, branchName, defaultBranch, submoduleRepo) => {
   const response = await axios.post(`https://${bitbucketHost}/rest/api/latest/projects/${repo.project.key}/repos/${repo.name}/pull-requests`,
     {
-      title: `Bump ${submoduleRepo} version`,
+      title: `Bump ${submoduleRepo.name} version`,
       description: `Auto PR for bumping ${submoduleRepo} version`,
       state: 'OPEN',
       open: true,
@@ -163,6 +163,7 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
         await git.add('.');
         
         await git.addConfig('user.name', gitUserName);
+
         await git.addConfig('user.email', gitUserEmail);
 
 
