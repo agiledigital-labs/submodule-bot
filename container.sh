@@ -20,20 +20,20 @@ fi
 
 set -x
 
-sudo docker ps -a
-sudo docker stop -t 0 submodule-bot
-sudo docker rm submodule-bot
-sudo docker ps -a
+docker ps -a
+docker stop -t 0 submodule-bot
+docker rm submodule-bot
+docker ps -a
 
-sudo docker image rm ad/submodule-bot
-sudo docker build -t ad/submodule-bot .
+docker image rm ad/submodule-bot
+docker build -t ad/submodule-bot .
 
 set +x
 if [ "$SUBMODULE_BOT_PRIVATE_KEY_ID" != "" ]; then
     export SUBMODULE_BOT_PRIVATE_KEY="$(gpg --export-secret-keys --armor $SUBMODULE_BOT_PRIVATE_KEY_ID | tr '\n' '_')"
 fi
 
-echo + sudo docker run \
+echo + docker run \
     --env "SUBMODULE_BOT_PRIVATE_KEY_ID=[...]" \
     --env "SUBMODULE_BOT_PRIVATE_KEY=[...]" \
     --env "GIT_USER_NAME=$GIT_USER_NAME" \
@@ -43,7 +43,7 @@ echo + sudo docker run \
     --name=submodule-bot \
     -p 49000:3000 \
     -d ad/submodule-bot
-sudo docker run \
+docker run \
     --env "SUBMODULE_BOT_PRIVATE_KEY_ID=$SUBMODULE_BOT_PRIVATE_KEY_ID" \
     --env "SUBMODULE_BOT_PRIVATE_KEY=$(echo $SUBMODULE_BOT_PRIVATE_KEY | tr '_' '\n')" \
     --env "GIT_USER_NAME=$GIT_USER_NAME" \

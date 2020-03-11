@@ -1,0 +1,29 @@
+{
+  "AWSEBDockerrunVersion": 2,
+  "volumes": [
+    {
+      "name": "repos"
+      "host": {
+        "sourcePaht": "/home/ec2-user/repos"
+      }
+    }
+  ],
+  "containerDefinitions": [
+    {
+      "name": "submodule_bot",
+      "image": "[Replace with your AWS Account ID].dkr.ecr.ap-southeast-2.amazonaws.com/submodule-bot:latest",
+      "essential": true,
+      "memory": 512,
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 3000
+        }
+      ],
+      "mountPoints": [
+        "sourceVolume": "repos",
+        "containerPath": "/usr/src/app/repos"
+      ]
+    }
+  ]
+}
