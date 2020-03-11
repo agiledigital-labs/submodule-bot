@@ -21,8 +21,10 @@
         }
       ],
       "mountPoints": [
-        "sourceVolume": "repos",
-        "containerPath": "/usr/src/app/repos"
+        {
+          "sourceVolume": "repos",
+          "containerPath": "/usr/src/app/repos"
+        }
       ]
     }
   ]
