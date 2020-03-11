@@ -15,6 +15,10 @@ const app = express();
 
 app.use(bodyParser.json());
 
+app.post('/', (_req, _res) => res.status(200).send({ 
+  message: 'This is submodule-bot, use /hook path for your Bitbucket webhook' 
+}));
+
 app.post('/hook', async (req, res) => {
   try {
     console.log('POST /hook');
