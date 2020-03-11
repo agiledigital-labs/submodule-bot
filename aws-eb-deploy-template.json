@@ -2,7 +2,7 @@
   "AWSEBDockerrunVersion": 2,
   "volumes": [
     {
-      "name": "repos"
+      "name": "repos",
       "host": {
         "sourcePaht": "/home/ec2-user/repos"
       }
