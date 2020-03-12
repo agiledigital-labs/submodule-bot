@@ -121,14 +121,16 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
   // Init submodules so we can have working module directory.
   await git.submoduleUpdate(['--init', '--recursive']);
 
-  const submoduleConfigs = await git.raw(['config', '--file', '.gitmodules', '--get-regexp', 'url']);
+  const submoduleConfigs = await git.raw(['config', '--file', '.gitmodules', '--get-regexp', 'path']);
+
+  console.log(submoduleConfigs);
 
   if (submoduleConfigs) {
     const submodulePath = submoduleConfigs.split('\n')
       .filter(line => line.length > 0)
       .map(line => {
-        const [pathUrl, rawName] = line.split(' ');
-        return { pathUrl, rawName }
+        const [_, path] = line.split(' ');
+        return { path }
       });
 
     const submodules = await git.subModule(['status']);
@@ -140,10 +142,16 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
         return { commit, path };
       });
 
-    const submodulePathToUpdate = submodulePath.find(subPath => subPath.rawName.indexOf(submoduleRepo.name) > -1);
+    const submodulePathToUpdate = submodulePath.find(subPath => { 
+      const pathParts = subPath.path.split('/');
+      const folderName = pathParts[pathParts.length - 1];
+      const folderNameRegex = new RegExp(folderName, 'g');
+      const match = submoduleRepo.name.match(folderNameRegex);
+      return match && match.length > 0;
+    });
 
     if (submodulePathToUpdate) {
-      const submoduleToUpdate = submoduleCommits.find(sub => submodulePathToUpdate.pathUrl.indexOf(sub.path) > -1);
+      const submoduleToUpdate = submoduleCommits.find(sub => submodulePathToUpdate.path.indexOf(sub.path) > -1);
 
       console.log('Submodule to update', submoduleToUpdate);
 
@@ -155,6 +163,8 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
         const branchName = `feature/${jiraTicket}-bump-${submoduleRepo.name}`;
 
         await git.cwd(`${repoDir}/${submoduleToUpdate.path}`);
+
+        await git.fetch();
 
         await git.checkout(submoduleCommit.id);
 

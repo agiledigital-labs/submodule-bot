@@ -28,3 +28,9 @@ npm install
 // Run
 node server.js
 ```
+
+### Build Docker image with ENVs
+```
+// Make sure those ENVs are set on the build shell
+docker build --build-arg SUBMODULE_BOT_PRIVATE_KEY --build-arg SUBMODULE_BOT_PRIVATE_KEY_ID --build-arg GIT_USER_NAME --build-arg GIT_USER_EMAIL --build-arg BITBUCKET_USERNAME --build-arg BITBUCKET_PASSWORD -t ad/submodule-bot .
+```
