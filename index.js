@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs-extra');
+const { zip, isEmpty } = require('lodash');
 
 const workingDirPath = './repos';
 
@@ -53,7 +54,7 @@ const fetchCommit = async (bitbucketHost, commit, repo) => {
   return response.data;
 };
 
-const createPullRequest = async (bitbucketHost, repo, branchName, defaultBranch, submoduleRepo) => {
+const createPullRequest = async (bitbucketHost, repo, branchName, defaultBranch, submoduleRepo, reviewerNames) => {
   const response = await axios.post(`https://${bitbucketHost}/rest/api/latest/projects/${repo.project.key}/repos/${repo.name}/pull-requests`,
     {
       title: `Bump ${submoduleRepo.name} version`,
@@ -70,6 +71,7 @@ const createPullRequest = async (bitbucketHost, repo, branchName, defaultBranch,
           }
         }
       },
+      reviewers: reviewerNames,
       toRef: {
         id: defaultBranch.id,
         repository: {
@@ -90,7 +92,7 @@ const createPullRequest = async (bitbucketHost, repo, branchName, defaultBranch,
   return response.data;
 };
 
-const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) => {
+const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo, reviewerNames) => {
   console.log(`Working on [${repo.name}]...`);
   
   // Reset working directory.
@@ -121,17 +123,44 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
   // Init submodules so we can have working module directory.
   await git.submoduleUpdate(['--init', '--recursive']);
 
-  const submoduleConfigs = await git.raw(['config', '--file', '.gitmodules', '--get-regexp', 'path']);
+  const submoduleUrlConfigs = await git.raw(['config', '--file', '.gitmodules', '--get-regexp', 'url']);
 
-  console.log(submoduleConfigs);
+  console.log('Submodule URL configs');
+  console.log(submoduleUrlConfigs);
 
-  if (submoduleConfigs) {
-    const submodulePath = submoduleConfigs.split('\n')
-      .filter(line => line.length > 0)
-      .map(line => {
-        const [_, path] = line.split(' ');
-        return { path }
+  const submodulePathConfigs = await git.raw(['config', '--file', '.gitmodules', '--get-regexp', 'path']);
+
+  console.log('Submodule Path configs');
+  console.log(submodulePathConfigs);
+
+  if (submoduleUrlConfigs && submodulePathConfigs) {
+    const subUrlConfigs = submoduleUrlConfigs.split('\n');
+    const subPathConfigs = submodulePathConfigs.split('\n');
+
+    const subConfigs = zip(subUrlConfigs, subPathConfigs).filter(([u, p]) => !isEmpty(u) && !isEmpty(p));
+
+    console.log('Submodule configs', subConfigs);
+
+    const submoduleRepos = subConfigs
+      .map(([urlConfig, pathConfig]) => {
+        const [_, repoUrl] = urlConfig.split(' ');
+        const [__, path] = pathConfig.split(' ');
+        return { repoUrl, path }
       });
+
+
+    console.log('Submodule repos', submoduleRepos);
+
+    const submoduleUrlToUpdate = submoduleRepos.find(repo => { 
+      const urlParts = repo.repoUrl.split('/');
+      const repoName = urlParts[urlParts.length - 1];
+      const subRepoRegex = new RegExp(submoduleRepo.name, 'g');
+      const match = repoName.match(subRepoRegex);
+      return match && match.length > 0;
+    });
+
+    console.log('Submodule URL to update', submoduleUrlToUpdate);
+    console.log(`Submodule Repo Name [${submoduleRepo.name}]`);
 
     const submodules = await git.subModule(['status']);
 
@@ -142,16 +171,10 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
         return { commit, path };
       });
 
-    const submodulePathToUpdate = submodulePath.find(subPath => { 
-      const pathParts = subPath.path.split('/');
-      const folderName = pathParts[pathParts.length - 1];
-      const folderNameRegex = new RegExp(folderName, 'g');
-      const match = submoduleRepo.name.match(folderNameRegex);
-      return match && match.length > 0;
-    });
+    if (submoduleUrlToUpdate) {
+      console.log('Submodule commits', submoduleCommits);
 
-    if (submodulePathToUpdate) {
-      const submoduleToUpdate = submoduleCommits.find(sub => submodulePathToUpdate.path.indexOf(sub.path) > -1);
+      const submoduleToUpdate = submoduleCommits.find(sub => submoduleUrlToUpdate.path.indexOf(sub.path) > -1);
 
       console.log('Submodule to update', submoduleToUpdate);
 
@@ -185,7 +208,7 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
 
         await git.push(['origin', `HEAD:${branchName}`]);
 
-        const prResponse = await createPullRequest(bitbucketHost, repo, branchName, defaultBranch, submoduleRepo);
+        const prResponse = await createPullRequest(bitbucketHost, repo, branchName, defaultBranch, submoduleRepo, reviewerNames);
 
         console.log(`PR created [${JSON.stringify(prResponse, null, 2)}]`);
       }
@@ -204,7 +227,7 @@ const processRepo = async (bitbucketHost, repo, submoduleCommit, submoduleRepo) 
   return 'Done';
 }
 
-const run = async (bitbucketHost, submoduleRepo, mergeCommit) => {
+const run = async (bitbucketHost, submoduleRepo, mergeCommit, reviewerNames) => {
   const data = await fetchRepos(bitbucketHost, submoduleRepo);
 
   const repos = data.values;
@@ -225,7 +248,7 @@ const run = async (bitbucketHost, submoduleRepo, mergeCommit) => {
       // Wait for previous working finished in order to not confuse SimpleGit's session.
       await res;
 
-      const result = await processRepo(bitbucketHost, repo, submoduleCommit, submoduleRepo);
+      const result = await processRepo(bitbucketHost, repo, submoduleCommit, submoduleRepo, reviewerNames);
       
       console.log('\n');
 

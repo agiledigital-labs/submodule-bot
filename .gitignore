@@ -1,2 +1,4 @@
 node_modules
 repos
+.env
+aws-eb-deploy.json

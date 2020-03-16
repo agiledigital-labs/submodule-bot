@@ -33,9 +33,13 @@ app.post('/hook', async (req, res) => {
 
     const mergeCommit = req.body.pullRequest.properties.mergeCommit;
 
+    const reviewerNames = req.body.pullRequest.reviewers.map(r => ({ user: { name: r.user.name } }));
+
+    console.log('Reviewers for bump PRs', reviewerNames);
+
     if (defaultBranch.id === req.body.pullRequest.toRef.id) {
       // Triggers the submodule update.
-      index.run(bitbucketHost, repo, mergeCommit);
+      index.run(bitbucketHost, repo, mergeCommit, reviewerNames);
       return res.status(200).send({ message: 'Successfully scheduled submodule update' });
     } else {
       console.log('Not merging to default branch, ignoring');
